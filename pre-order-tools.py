@@ -115,6 +115,7 @@ class DeletePreorderOptionsUI:
                     for index, row in enumerate(rows):
                         if index not in selected_indices:
                             csv_writer.writerow(row)
+                csv_file.close()  # Close the file
                 self.options_listbox.delete(0, tk.END)
                 self.load_options()
 
@@ -191,27 +192,34 @@ class ProductEntryUI:
         tk.Label(self.parent, text="Price:").grid(row=1, column=0, padx=10, pady=10)
         self.price_entry = tk.Entry(self.parent)
         self.price_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(self.parent, text="MSRP:").grid(row=2, column=0, padx=10, pady=10)
+        self.msrp_Entry = tk.Entry(self.parent)
+        self.msrp_Entry.grid(row=2, column=1, padx=10, pady=10)
         
-        tk.Label(self.parent, text="UPC:").grid(row=2, column=0, padx=10, pady=10)
+        tk.Label(self.parent, text="UPC:").grid(row=3, column=0, padx=10, pady=10)
         self.upc_entry = tk.Entry(self.parent)
-        self.upc_entry.grid(row=2, column=1, padx=10, pady=10)
+        self.upc_entry.grid(row=3, column=1, padx=10, pady=10)
         
-        tk.Label(self.parent, text="Release Date:").grid(row=3, column=0, padx=10, pady=10)
-        self.release_date_entry = tk.Entry(self.parent)
-        self.release_date_entry.grid(row=3, column=1, padx=10, pady=10)
+        tk.Label(self.parent, text="Release Date:").grid(row=4, column=0, padx=10, pady=10)
+        self.release_date_entry = DateEntry(self.parent, date_pattern='yyyy-mm-dd')
+        self.release_date_entry.grid(row=4, column=1, padx=10, pady=10)
         
-        tk.Label(self.parent, text="Preorder Dates:").grid(row=4, column=0, padx=10, pady=10)
-        self.preorder_dates_entry = tk.Entry(self.parent)
-        self.preorder_dates_entry.grid(row=4, column=1, padx=10, pady=10)
+        tk.Label(self.parent, text="Preorder Dates:").grid(row=5, column=0, padx=10, pady=10)
+        self.preorder_dates_entry = DateEntry(self.parent, date_pattern='yyyy-mm-dd')
+        self.preorder_dates_entry.grid(row=5, column=1, padx=10, pady=10)
+
+        
         
         # Create the "Submit" button
         self.submit_button = ttk.Button(self.parent, text="Submit", command=self.submit_form)
-        self.submit_button.grid(row=5, column=1, padx=10, pady=10)
+        self.submit_button.grid(row=6, column=1, padx=10, pady=10)
         
     def submit_form(self):
         # Get values from each input field
         product_name = self.product_name_entry.get()
         price = self.price_entry.get()
+        msrp = self.msrp_Entry.get()
         upc = self.upc_entry.get()
         release_date = self.release_date_entry.get()
         preorder_dates = self.preorder_dates_entry.get()
@@ -219,11 +227,12 @@ class ProductEntryUI:
         # Open the CSV file for writing and append the new row
         with open('pre_order_options.csv', 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow([product_name, price, upc, release_date, preorder_dates])
+            writer.writerow([product_name, price,msrp, upc, release_date, preorder_dates])
         
         # Clear the input fields
         self.product_name_entry.delete(0, tk.END)
         self.price_entry.delete(0, tk.END)
+        self.msrp_Entry.delete(0, tk.END)
         self.upc_entry.delete(0, tk.END)
         self.release_date_entry.delete(0, tk.END)
         self.preorder_dates_entry.delete(0, tk.END)
@@ -238,65 +247,97 @@ class PlacePreorders:
         master.title("Preorder Form")
         master.geometry("800x800")
 
-        # Load pre-order options from CSV file
-        self.options = []
-        with open("pre_order_options.csv") as file:
-            reader = csv.reader(file)
-            for row in reader:
-                self.options.append(row[0])
+        self.filter_var = tk.StringVar()
+        self.filter_var.trace("w", self.refresh_table)
 
         # Create input fields
         self.first_name_label = tk.Label(master, text="First Name:")
-        self.first_name_label.place(relx=0.1, rely=0.1,relwidth=0.5,  anchor="w")
+        self.first_name_label.place(relx=0.1, rely=0.05, relwidth=0.5, anchor="w")
         self.first_name_entry = tk.Entry(master)
-        self.first_name_entry.place(relx=0.4, rely=0.1,relwidth=0.5,  anchor="w")
+        self.first_name_entry.place(relx=0.4, rely=0.05, relwidth=0.5, anchor="w")
 
         self.last_name_label = tk.Label(master, text="Last Name:")
-        self.last_name_label.place(relx=0.1, rely=0.2,relwidth=0.5,  anchor="w")
+        self.last_name_label.place(relx=0.1, rely=0.1, relwidth=0.5, anchor="w")
         self.last_name_entry = tk.Entry(master)
-        self.last_name_entry.place(relx=0.4, rely=0.2,relwidth=0.5,  anchor="w")
+        self.last_name_entry.place(relx=0.4, rely=0.1, relwidth=0.5, anchor="w")
 
         self.email_label = tk.Label(master, text="Email:")
-        self.email_label.place(relx=0.1, rely=0.3,relwidth=0.5,  anchor="w")
+        self.email_label.place(relx=0.1, rely=0.15, relwidth=0.5, anchor="w")
         self.email_entry = tk.Entry(master)
-        self.email_entry.place(relx=0.4, rely=0.3,relwidth=0.5,  anchor="w")
-        
+        self.email_entry.place(relx=0.4, rely=0.15, relwidth=0.5, anchor="w")
+
         self.phone_label = tk.Label(master, text="Phone Number:")
-        self.phone_label.place(relx=0.1, rely=0.4,relwidth=0.5,  anchor="w")
+        self.phone_label.place(relx=0.1, rely=0.2, relwidth=0.5, anchor="w")
         self.phone_entry = tk.Entry(master)
-        self.phone_entry.place(relx=0.4, rely=0.4,relwidth=0.5,  anchor="w")
+        self.phone_entry.place(relx=0.4, rely=0.2, relwidth=0.5, anchor="w")
 
         self.expected_delivery_label = tk.Label(master, text="Expected Delivery Date (YYYY-MM-DD):")
-        self.expected_delivery_label.place(relx=0.1, rely=0.5,relwidth=0.5,  anchor="w")
+        self.expected_delivery_label.place(relx=0.1, rely=0.25, relwidth=0.5, anchor="w")
         self.expected_delivery = DateEntry(master, date_pattern='yyyy-mm-dd')
-        self.expected_delivery.place(relx=0.4, rely=0.5,relwidth=0.5,  anchor="w")
+        self.expected_delivery.place(relx=0.4, rely=0.25, relwidth=0.5, anchor="w")
 
-        self.description_label = tk.Label(master, text="Description:")
-        self.description_label.place(relx=0.1, rely=0.6,relwidth=0.5,  anchor="w")
-        self.description_variable = ttk.Combobox(master, values=self.options)
-        self.description_variable.place(relx=0.4, rely=0.6,relwidth=0.5,  anchor="w")
-        # Bind the combobox to the filter function
-        self.description_variable.bind('<<ComboboxSelected>>', self.filter_options)
-        self.description_variable.bind('<Key>', self.filter_options)
+        # Create the filter entry box
+        filter_label = tk.Label(master, text="Filter:")
+        filter_label.place(relx=0.1, rely=0.3, relwidth=0.5, anchor="w")
+        self.filter_entry = tk.Entry(master, textvariable=self.filter_var)
+        self.filter_entry.place(relx=0.4, rely=0.3, relwidth=0.5, anchor="w")
+
+        # Create the asset table
+        self.table = ttk.Treeview(master, columns=("name", "price","MSRP", "upc", "release_date", "preorder_dates"), show="headings")
+        self.table.place(relx=0.1, rely=0.5, relwidth=0.8, anchor="w")
+        for idx, heading in enumerate(["Name", "Price","MSRP", "UPC", "Release Date", "Preorder Dates"]):
+            self.table.heading(f"{idx}", text=heading)
+            self.table.column(f"{idx}", width=200 if idx == 0 else 75 if idx == 1 else 100 if idx == 2 else 200)
+
+        # Create vertical scrollbar
+        vsb = ttk.Scrollbar(master, orient="vertical", command=self.table.yview)
+        vsb.place(relx=0.9, rely=0.5, relheight=0.35, anchor="center")
+        # Configure Treeview to use vertical scrollbar
+        self.table.configure(yscrollcommand=vsb.set)
+
+        # Create horizontal scrollbar
+        hsb = ttk.Scrollbar(master, orient="horizontal", command=self.table.xview)
+        hsb.place(relx=0.5, rely=0.85, relwidth=0.8, anchor="center")
+        # Configure Treeview to use horizontal scrollbar
+        self.table.configure(xscrollcommand=hsb.set)
+
+        self.table.bind("<<TreeviewSelect>>", self.on_select)
+
+        self.asset_list = []
+        with open("pre_order_options.csv", "r") as csv_file:
+            csv_reader = csv.reader(csv_file)
+            next(csv_reader)  # skip the header row
+            self.asset_list = list(csv_reader)
 
         # Create error label
         self.error_label = tk.Label(master, fg="red")
-        self.error_label.place(relx=0.1, rely=0.7,relwidth=0.5,  anchor="w")
+        self.error_label.place(relx=0.1, rely=0.8,relwidth=0.5,  anchor="w")
 
         # Create submit button
         self.submit_button = tk.Button(master, text="Submit", command=self.submit)
-        self.submit_button.place(relx=0.5, rely=0.8,relwidth=0.5,  anchor="center")
-        
-        
-    def filter_options(self, event):
-        # Get the user's input
-        user_input = self.description_variable.get()
+        self.submit_button.place(relx=0.5, rely=.9,relwidth=0.5,  anchor="center")
 
-        # Filter the options based on the user's input
-        filtered_options = [option for option in self.options if user_input.lower() in option.lower()]
+        self.refresh_table()
 
-        # Update the combobox with the filtered options
-        self.description_variable.config(values=filtered_options)
+    def on_select(self, event):
+        selected_item = self.table.item(self.table.selection())["values"]
+        self.selected_item = selected_item[0]
+        
+    def refresh_table(self, *_):
+        # Clear the table
+        self.table.delete(*self.table.get_children())
+
+        # Filter the asset list
+        filter_str = self.filter_var.get().lower()
+        filtered_list = [asset for asset in self.asset_list if filter_str in asset[0].lower()]
+
+        # Add the filtered assets to the table
+        for asset in filtered_list:
+            self.table.insert("", tk.END, values=asset)
+
+        # Schedule another refresh after 1 second
+        self.after(1000, self.refresh_table)    
+    
 
     def submit(self):
         first_name = self.first_name_entry.get()
@@ -304,18 +345,13 @@ class PlacePreorders:
         email = self.email_entry.get()
         phone = self.phone_entry.get()
         expected_delivery = self.expected_delivery.get()
-        description = self.description_variable.get()
+        description = self.selected_item
 
-        if not (first_name and last_name and email and expected_delivery and description and phone):
+        if not (first_name and last_name and expected_delivery and description and phone):
             error_message = "Please fill in all fields."
             self.error_label.config(text=error_message)
             return
 
-        # Verify email field is valid email address
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            error_message = "Please enter a valid email address."
-            self.error_label.config(text=error_message)
-            return
 
         if not re.match(r"^\(?(\d{3})\)?[- ]?(\d{3})[- ]?(\d{4})$", phone):
             error_message = "Please enter a valid phone number."
@@ -416,3 +452,4 @@ if __name__ == '__main__':
     root = tk.Tk()
     app = MainApp(root)
     root.mainloop()
+
