@@ -282,32 +282,37 @@ class PlacePreorders:
         self.filter_entry = tk.Entry(master, textvariable=self.filter_var)
         self.filter_entry.place(relx=0.4, rely=0.3, relwidth=0.5, anchor="w")
 
-        # Create the asset table
-        self.table = ttk.Treeview(master, columns=("name", "price","MSRP", "upc", "release_date", "preorder_dates"), show="headings")
-        self.table.place(relx=0.1, rely=0.5, relwidth=0.8, anchor="w")
-        for idx, heading in enumerate(["Name", "Price","MSRP", "UPC", "Release Date", "Preorder Dates"]):
-            self.table.heading(f"{idx}", text=heading)
-            self.table.column(f"{idx}", width=200 if idx == 0 else 75 if idx == 1 else 100 if idx == 2 else 200)
+        # Create a label above the table
+        table_format_label = tk.Label(master, text="Item | Price | MSRP | UPC | Release date | Order by date")
+        table_format_label.place(relx=0.1, rely=0.4, anchor="w")
+
+        # Create the asset listbox
+        self.table = tk.Listbox(master)
+        self.table.place(relx=0.1, rely=0.6, relwidth=0.8, anchor="w")
+        self.table.configure(font=("Courier", 10))
 
         # Create vertical scrollbar
         vsb = ttk.Scrollbar(master, orient="vertical", command=self.table.yview)
-        vsb.place(relx=0.9, rely=0.5, relheight=0.35, anchor="center")
-        # Configure Treeview to use vertical scrollbar
+        vsb.place(relx=0.9, rely=0.6, relheight=0.35, anchor="center")
+        # Configure Listbox to use vertical scrollbar
         self.table.configure(yscrollcommand=vsb.set)
 
         # Create horizontal scrollbar
         hsb = ttk.Scrollbar(master, orient="horizontal", command=self.table.xview)
         hsb.place(relx=0.5, rely=0.85, relwidth=0.8, anchor="center")
-        # Configure Treeview to use horizontal scrollbar
+        # Configure Listbox to use horizontal scrollbar
         self.table.configure(xscrollcommand=hsb.set)
 
-        self.table.bind("<<TreeviewSelect>>", self.on_select)
+        self.table.bind("<<ListboxSelect>>", self.on_select)
 
         self.asset_list = []
         with open("pre_order_options.csv", "r") as csv_file:
             csv_reader = csv.reader(csv_file)
             next(csv_reader)  # skip the header row
-            self.asset_list = list(csv_reader)
+            for row in csv_reader:
+                asset_str = "|".join(row)
+                self.asset_list.append(asset_str)
+                self.table.insert(tk.END, asset_str)
 
         # Create error label
         self.error_label = tk.Label(master, fg="red")
@@ -320,23 +325,23 @@ class PlacePreorders:
         self.refresh_table()
 
     def on_select(self, event):
-        selected_item = self.table.item(self.table.selection())["values"]
-        self.selected_item = selected_item[0]
-        
+        selected_item = self.table.get(self.table.curselection())
+        self.selected_item = selected_item
+
     def refresh_table(self, *_):
         # Clear the table
-        self.table.delete(*self.table.get_children())
+        self.table.delete(0, tk.END)
 
         # Filter the asset list
         filter_str = self.filter_var.get().lower()
-        filtered_list = [asset for asset in self.asset_list if filter_str in asset[0].lower()]
+        filtered_list = [asset for asset in self.asset_list if filter_str in asset.lower()]
 
         # Add the filtered assets to the table
         for asset in filtered_list:
-            self.table.insert("", tk.END, values=asset)
+            self.table.insert(tk.END, asset)
 
         # Schedule another refresh after 1 second
-        self.after(1000, self.refresh_table)    
+        #self.master.after(1000, self.refresh_table)
     
 
     def submit(self):
@@ -352,7 +357,6 @@ class PlacePreorders:
             self.error_label.config(text=error_message)
             return
 
-
         if not re.match(r"^\(?(\d{3})\)?[- ]?(\d{3})[- ]?(\d{4})$", phone):
             error_message = "Please enter a valid phone number."
             self.error_label.config(text=error_message)
@@ -363,6 +367,9 @@ class PlacePreorders:
             error_message = "Please enter a valid date (YYYY-MM-DD)."
             self.error_label.config(text=error_message)
             return
+
+        # Parse out the selected item before the first '|' symbol
+        description = description.split('|')[0].strip()
 
         # Add new customer data to CSV file
         with open("customer_data.csv", "a", newline='') as file:
@@ -452,4 +459,3 @@ if __name__ == '__main__':
     root = tk.Tk()
     app = MainApp(root)
     root.mainloop()
-
